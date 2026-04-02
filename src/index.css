@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg-a: #f5f3ea;
+  --bg-b: #ffe6c9;
+  --panel: #fff8ef;
+  --panel-strong: #fff;
+  --line: #e7d6c2;
+  --ink: #2c1d12;
+  --muted: #7b6658;
+  --brand: #ea580c;
+  --brand-soft: rgba(234, 88, 12, 0.14);
+  --ok: #15803d;
+  --bad: #b91c1c;
+}
+
+.dark {
+  --bg-a: #0c1116;
+  --bg-b: #0e1722;
+  --panel: #111d2a;
+  --panel-strong: #122234;
+  --line: #22354a;
+  --ink: #edf6ff;
+  --muted: #99a9be;
+  --brand: #f97316;
+  --brand-soft: rgba(249, 115, 22, 0.2);
+  --ok: #22c55e;
+  --bad: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 8% 12%, rgba(234, 88, 12, 0.12), transparent 36%),
+    radial-gradient(circle at 90% 0%, rgba(16, 185, 129, 0.12), transparent 35%),
+    linear-gradient(135deg, var(--bg-a), var(--bg-b));
+  font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.glass-panel {
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+  backdrop-filter: blur(8px);
+  border-radius: 1rem;
+}
+
+.card-entrance {
+  animation: rise-in 400ms ease both;
+}
+
+.page-heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.page-subtext {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.tab-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tab-btn {
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+  color: var(--ink);
+  padding: 0.52rem 0.84rem;
+  border-radius: 0.66rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.tab-btn.active {
+  border-color: transparent;
+  background: var(--brand);
+  color: #fff;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 760px;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  backdrop-filter: blur(10px);
+  padding: 1.25rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.32rem;
+  font-size: 0.86rem;
+}
+
+.field input,
+.field select,
+.field textarea {
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+  color: var(--ink);
+  border-radius: 0.65rem;
+  padding: 0.6rem 0.72rem;
+  font-size: 0.9rem;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

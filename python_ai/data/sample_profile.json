@@ -1,0 +1,14 @@
+{
+  "age": 27,
+  "weight_kg": 68,
+  "height_cm": 170,
+  "gender": "female",
+  "goal": "fat_loss",
+  "activity_level": "active",
+  "has_diabetes": 0,
+  "lactose_intolerant": 1,
+  "meals_per_day": 4,
+  "snacks_per_day": 1,
+  "liked_foods": ["Chicken Breast", "Oats", "Blueberries", "Avocado"],
+  "disliked_foods": ["Milk (2%)", "Cheddar Cheese"]
+}

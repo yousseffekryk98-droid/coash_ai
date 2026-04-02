@@ -1,0 +1,76 @@
+{
+  "daily_targets": {
+    "calories": 2067,
+    "protein": 137.6,
+    "carbs": 203.4,
+    "fats": 67.6
+  },
+  "slot_targets": {
+    "calories": 413,
+    "protein": 27.5,
+    "carbs": 40.7,
+    "fats": 13.5
+  },
+  "items": [
+    {
+      "slot": 1,
+      "food": "Avocado",
+      "category": "Fat",
+      "target_macros": {
+        "calories": 413,
+        "protein": 27.5,
+        "carbs": 40.7,
+        "fats": 13.5
+      }
+    },
+    {
+      "slot": 2,
+      "food": "Blueberries",
+      "category": "Carb",
+      "target_macros": {
+        "calories": 413,
+        "protein": 27.5,
+        "carbs": 40.7,
+        "fats": 13.5
+      }
+    },
+    {
+      "slot": 3,
+      "food": "Chicken Breast",
+      "category": "Protein",
+      "target_macros": {
+        "calories": 413,
+        "protein": 27.5,
+        "carbs": 40.7,
+        "fats": 13.5
+      }
+    },
+    {
+      "slot": 4,
+      "food": "Oats (Dry)",
+      "category": "Carb",
+      "target_macros": {
+        "calories": 413,
+        "protein": 27.5,
+        "carbs": 40.7,
+        "fats": 13.5
+      }
+    },
+    {
+      "slot": 5,
+      "food": "White Rice (Cooked)",
+      "category": "Carb",
+      "target_macros": {
+        "calories": 413,
+        "protein": 27.5,
+        "carbs": 40.7,
+        "fats": 13.5
+      }
+    }
+  ],
+  "notes": [
+    "Plan respects liked/disliked food list.",
+    "Lactose foods are removed when lactose_intolerant = 1.",
+    "High-GI foods are removed when has_diabetes = 1."
+  ]
+}

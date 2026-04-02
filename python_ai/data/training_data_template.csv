@@ -1,0 +1,7 @@
+age,weight_kg,height_cm,gender,goal,activity_level,has_diabetes,lactose_intolerant,meals_per_day,snacks_per_day,target_calories,target_protein,target_carbs,target_fats
+25,65,168,female,fat_loss,active,0,1,4,1,1950,130,185,65
+31,82,178,male,maintenance,active,0,0,4,1,2600,165,290,75
+28,58,162,female,lean_bulk,lightly_active,0,0,5,2,2250,120,280,70
+39,92,180,male,fat_loss,inactive,1,1,4,1,2200,170,180,85
+23,70,172,female,maintenance,very_active,0,0,5,2,2500,140,310,78
+34,77,175,male,competition_prep,active,0,1,6,1,2400,190,220,68

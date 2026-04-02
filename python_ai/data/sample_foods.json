@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Chicken Breast",
+    "category": "Protein",
+    "glycemicIndex": "Low",
+    "containsLactose": false
+  },
+  {
+    "name": "Greek Yogurt (Non-fat)",
+    "category": "Protein",
+    "glycemicIndex": "Low",
+    "containsLactose": true
+  },
+  {
+    "name": "Oats (Dry)",
+    "category": "Carb",
+    "glycemicIndex": "Low",
+    "containsLactose": false
+  },
+  {
+    "name": "White Rice (Cooked)",
+    "category": "Carb",
+    "glycemicIndex": "High",
+    "containsLactose": false
+  },
+  {
+    "name": "Blueberries",
+    "category": "Carb",
+    "glycemicIndex": "Low",
+    "containsLactose": false
+  },
+  {
+    "name": "Avocado",
+    "category": "Fat",
+    "glycemicIndex": "Low",
+    "containsLactose": false
+  },
+  {
+    "name": "Cheddar Cheese",
+    "category": "Fat",
+    "glycemicIndex": "Low",
+    "containsLactose": true
+  }
+]

@@ -1,0 +1,2 @@
+# No external dependencies required.
+# This AI module runs on Python standard library only.

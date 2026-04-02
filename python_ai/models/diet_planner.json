@@ -1,0 +1,190 @@
+{
+  "model_type": "knn_regression_stdlib",
+  "feature_columns": [
+    "age",
+    "weight_kg",
+    "height_cm",
+    "gender",
+    "goal",
+    "activity_level",
+    "has_diabetes",
+    "lactose_intolerant",
+    "meals_per_day",
+    "snacks_per_day"
+  ],
+  "target_columns": [
+    "target_calories",
+    "target_protein",
+    "target_carbs",
+    "target_fats"
+  ],
+  "numeric_columns": [
+    "age",
+    "weight_kg",
+    "height_cm",
+    "has_diabetes",
+    "lactose_intolerant",
+    "meals_per_day",
+    "snacks_per_day"
+  ],
+  "numeric_stats": {
+    "age": {
+      "min": 23.0,
+      "max": 39.0,
+      "range": 16.0
+    },
+    "weight_kg": {
+      "min": 58.0,
+      "max": 92.0,
+      "range": 34.0
+    },
+    "height_cm": {
+      "min": 162.0,
+      "max": 180.0,
+      "range": 18.0
+    },
+    "has_diabetes": {
+      "min": 0.0,
+      "max": 1.0,
+      "range": 1.0
+    },
+    "lactose_intolerant": {
+      "min": 0.0,
+      "max": 1.0,
+      "range": 1.0
+    },
+    "meals_per_day": {
+      "min": 4.0,
+      "max": 6.0,
+      "range": 2.0
+    },
+    "snacks_per_day": {
+      "min": 1.0,
+      "max": 2.0,
+      "range": 1.0
+    }
+  },
+  "rows": [
+    {
+      "features": {
+        "age": "25",
+        "weight_kg": "65",
+        "height_cm": "168",
+        "gender": "female",
+        "goal": "fat_loss",
+        "activity_level": "active",
+        "has_diabetes": "0",
+        "lactose_intolerant": "1",
+        "meals_per_day": "4",
+        "snacks_per_day": "1"
+      },
+      "targets": {
+        "target_calories": 1950.0,
+        "target_protein": 130.0,
+        "target_carbs": 185.0,
+        "target_fats": 65.0
+      }
+    },
+    {
+      "features": {
+        "age": "31",
+        "weight_kg": "82",
+        "height_cm": "178",
+        "gender": "male",
+        "goal": "maintenance",
+        "activity_level": "active",
+        "has_diabetes": "0",
+        "lactose_intolerant": "0",
+        "meals_per_day": "4",
+        "snacks_per_day": "1"
+      },
+      "targets": {
+        "target_calories": 2600.0,
+        "target_protein": 165.0,
+        "target_carbs": 290.0,
+        "target_fats": 75.0
+      }
+    },
+    {
+      "features": {
+        "age": "28",
+        "weight_kg": "58",
+        "height_cm": "162",
+        "gender": "female",
+        "goal": "lean_bulk",
+        "activity_level": "lightly_active",
+        "has_diabetes": "0",
+        "lactose_intolerant": "0",
+        "meals_per_day": "5",
+        "snacks_per_day": "2"
+      },
+      "targets": {
+        "target_calories": 2250.0,
+        "target_protein": 120.0,
+        "target_carbs": 280.0,
+        "target_fats": 70.0
+      }
+    },
+    {
+      "features": {
+        "age": "39",
+        "weight_kg": "92",
+        "height_cm": "180",
+        "gender": "male",
+        "goal": "fat_loss",
+        "activity_level": "inactive",
+        "has_diabetes": "1",
+        "lactose_intolerant": "1",
+        "meals_per_day": "4",
+        "snacks_per_day": "1"
+      },
+      "targets": {
+        "target_calories": 2200.0,
+        "target_protein": 170.0,
+        "target_carbs": 180.0,
+        "target_fats": 85.0
+      }
+    },
+    {
+      "features": {
+        "age": "23",
+        "weight_kg": "70",
+        "height_cm": "172",
+        "gender": "female",
+        "goal": "maintenance",
+        "activity_level": "very_active",
+        "has_diabetes": "0",
+        "lactose_intolerant": "0",
+        "meals_per_day": "5",
+        "snacks_per_day": "2"
+      },
+      "targets": {
+        "target_calories": 2500.0,
+        "target_protein": 140.0,
+        "target_carbs": 310.0,
+        "target_fats": 78.0
+      }
+    },
+    {
+      "features": {
+        "age": "34",
+        "weight_kg": "77",
+        "height_cm": "175",
+        "gender": "male",
+        "goal": "competition_prep",
+        "activity_level": "active",
+        "has_diabetes": "0",
+        "lactose_intolerant": "1",
+        "meals_per_day": "6",
+        "snacks_per_day": "1"
+      },
+      "targets": {
+        "target_calories": 2400.0,
+        "target_protein": 190.0,
+        "target_carbs": 220.0,
+        "target_fats": 68.0
+      }
+    }
+  ],
+  "row_count": 6
+}
