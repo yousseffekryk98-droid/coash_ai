@@ -1,22 +1,10 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { demoClient, demoCoach } from '../data/mock'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { Profile, UserRole } from '../types'
-
-type AuthContextValue = {
-  profile: Profile | null
-  session: Session | null
-  loading: boolean
-  signIn: (email: string, password: string) => Promise<string | null>
-  sendPasswordReset: (email: string) => Promise<string | null>
-  signInAsDemoRole: (role: UserRole) => void
-  refreshProfile: () => Promise<void>
-  signOut: () => Promise<void>
-}
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+import { AuthContext } from './auth-context'
 
 async function fetchProfile(userId: string): Promise<Profile | null> {
   if (!supabase) return null
@@ -38,13 +26,10 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(isSupabaseConfigured)
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) {
-      setLoading(false)
-      return
-    }
+    if (!isSupabaseConfigured || !supabase) return
 
     const client = supabase
     let isActive = true
@@ -59,8 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
+      const nextProfile = data.session?.user.id ? await fetchProfile(data.session.user.id) : null
+      if (!isActive) return
+
       setSession(data.session)
-      setProfile(data.session?.user.id ? await fetchProfile(data.session.user.id) : null)
+      setProfile(nextProfile)
       setLoading(false)
     }
 
@@ -133,27 +121,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null)
   }
 
-  const value = useMemo(
-    () => ({
-      profile,
-      session,
-      loading,
-      signIn,
-      sendPasswordReset,
-      signInAsDemoRole,
-      refreshProfile,
-      signOut,
-    }),
-    [profile, session, loading],
-  )
+  const value = {
+    profile,
+    session,
+    loading,
+    signIn,
+    sendPasswordReset,
+    signInAsDemoRole,
+    refreshProfile,
+    signOut,
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used inside AuthProvider')
-  }
-  return context
 }
