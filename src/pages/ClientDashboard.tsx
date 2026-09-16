@@ -1,31 +1,28 @@
-import { useEffect, useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ArrowRight, CalendarCheck2, Flame, Target, TrendingUp } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import Layout from '../components/shared/Layout'
 import ProgressRing from '../components/shared/ProgressRing'
-import PerformanceCharts from '../components/shared/PerformanceCharts'
 import AttendanceCalendar from '../components/AttendanceCalendar'
 import MacroCalculator from '../components/MacroCalculator'
 import RecipeScaler from '../components/RecipeScaler'
 import DailyWellnessCheckin from '../components/client/DailyWellnessCheckin'
 import StickyCoachNote from '../components/client/StickyCoachNote'
-import SwipeMealActions from '../components/client/SwipeMealActions'
-import ShoppingListGenerator from '../components/client/ShoppingListGenerator'
+import FoodSelectorCalculator from '../components/client/FoodSelectorCalculator'
 import RecoveryStressModule from '../components/client/RecoveryStressModule'
 import GutHealthTracker from '../components/client/GutHealthTracker'
-import CompetitionPrepCountdown from '../components/client/CompetitionPrepCountdown'
 import HealthDisclaimer from '../components/client/HealthDisclaimer'
-import FoodSelectorCalculator from '../components/client/FoodSelectorCalculator'
 import BloodworkVault from '../components/client/BloodworkVault'
 import SupplementProtocol from '../components/client/SupplementProtocol'
 import AIMealSwapper from '../components/client/AIMealSwapper'
-import HistoricalComparison from '../components/shared/HistoricalComparison'
+import PersonalizedDietPlan from '../components/client/PersonalizedDietPlan'
 import { useAuth } from '../hooks/useAuth'
-import { demoDailyLogs, demoGymLogs, demoRecipe, demoWeightTrend, demoWeightTrendLastYear } from '../data/mock'
 import type { CravingType } from '../utils/cycleSwaps'
 import { getCyclePhase } from '../utils/nutritionEngine'
 import { supabase } from '../api/supabaseClient'
+import { getClientOverview } from '../api/productApi'
+import type { ClientOverview } from '../api/productApi'
 import { LACTOSE_INTOLERANT_FLAG } from '../utils/foodPreferences'
-import PersonalizedDietPlan from '../components/client/PersonalizedDietPlan'
 
 type DietPreferences = {
   likedFoods: string[]
@@ -35,11 +32,24 @@ type DietPreferences = {
   snacksPerDay: number
 }
 
+const emptyOverview: ClientOverview = {
+  logs: [],
+  gymLogs: [],
+  weightTrend: [],
+  bodyWeightKg: null,
+  cycleStartDate: null,
+  hasDiabetes: false,
+  coachNote: null,
+}
+
 export default function ClientDashboard() {
   const { profile, signOut } = useAuth()
   const [craving, setCraving] = useState<CravingType>('None')
   const [hasDiabetes, setHasDiabetes] = useState(false)
   const [tab, setTab] = useState<'today' | 'nutrition' | 'health' | 'advanced'>('today')
+  const [overview, setOverview] = useState<ClientOverview>(emptyOverview)
+  const [loadingOverview, setLoadingOverview] = useState(true)
+  const [overviewError, setOverviewError] = useState('')
   const [dietPreferences, setDietPreferences] = useState<DietPreferences>({
     likedFoods: [],
     blockedFoods: [],
@@ -48,12 +58,30 @@ export default function ClientDashboard() {
     snacksPerDay: 1,
   })
 
+  const loadOverview = useCallback(async () => {
+    if (!profile) return
+    setLoadingOverview(true)
+    try {
+      const data = await getClientOverview(profile.id)
+      setOverview(data)
+      setHasDiabetes(data.hasDiabetes)
+      setOverviewError('')
+    } catch (reason) {
+      setOverviewError(reason instanceof Error ? reason.message : 'Unable to load your dashboard data.')
+    } finally {
+      setLoadingOverview(false)
+    }
+  }, [profile])
+
+  useEffect(() => {
+    void loadOverview()
+  }, [loadOverview])
+
   useEffect(() => {
     if (!profile || !supabase) return
-    const client = supabase
 
     const loadPreferences = async () => {
-      const { data } = await client
+      const { data } = await supabase
         .from('client_diet_preferences')
         .select('liked_foods, disliked_foods, meals_per_day, snacks_per_day')
         .eq('user_id', profile.id)
@@ -69,41 +97,85 @@ export default function ClientDashboard() {
       setDietPreferences({ likedFoods, blockedFoods, lactoseIntolerant, mealsPerDay, snacksPerDay })
     }
 
-    loadPreferences()
+    void loadPreferences()
   }, [profile])
 
-  const complianceSeries = useMemo(
-    () => demoDailyLogs.map((item) => ({ day: item.date.slice(5), score: Math.round((item.calories_actual / item.calories_target) * 100) })),
-    [],
-  )
+  const latestLog = overview.logs.at(-1)
+  const bodyWeight = overview.bodyWeightKg ?? 70
+  const calorieTarget = Number(latestLog?.calories_target ?? 0)
+  const calorieActual = Number(latestLog?.calories_actual ?? 0)
+  const completedWorkouts = overview.gymLogs.filter((log) => log.workout_completed).length
+  const recentGymLogs = overview.gymLogs.slice(-28)
+  const workoutRate = recentGymLogs.length ? Math.round((recentGymLogs.filter((log) => log.workout_completed).length / recentGymLogs.length) * 100) : 0
 
-  const strengthSeries = [
-    { day: 'Mon', orm: 102 },
-    { day: 'Tue', orm: 104 },
-    { day: 'Wed', orm: 103 },
-    { day: 'Thu', orm: 106 },
-    { day: 'Fri', orm: 108 },
-  ]
-  const phase = getCyclePhase(new Date('2026-03-20'))
+  const recentCompliance = useMemo(() => {
+    const logs = overview.logs.slice(-7).filter((log) => Number(log.calories_target ?? 0) > 0)
+    if (!logs.length) return 0
+    const score = logs.reduce((sum, log) => {
+      const target = Number(log.calories_target)
+      const actual = Number(log.calories_actual ?? 0)
+      return sum + Math.max(0, Math.min(100, (actual / target) * 100))
+    }, 0)
+    return Math.round(score / logs.length)
+  }, [overview.logs])
+
+  const phase = overview.cycleStartDate ? getCyclePhase(new Date(`${overview.cycleStartDate}T12:00:00`)) : null
 
   if (!profile) return null
 
   return (
     <Layout
       profile={profile}
-      title="Client Daily Companion"
-      subtitle="Bio-adaptive nutrition, wellness logs, and performance tracking."
+      title="Today"
+      subtitle="Log what actually happened today, see your coaching priorities, and keep the plan moving."
       onSignOut={signOut}
     >
-      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mb-4 grid gap-4 lg:grid-cols-3">
-        <ProgressRing value={1620} total={2050} label="Calories" />
-        <StickyCoachNote message="Do not forget posing practice today. Keep sodium consistent." />
-        <section className="glass-panel card-entrance p-4">
-          <h3 className="text-sm font-semibold">Morning status</h3>
-          <p className="mt-2 text-sm text-[var(--muted)]">Craving mode: {craving}</p>
-          <SwipeMealActions mealName="Meal 2: Chicken Bowl" />
-        </section>
-      </motion.section>
+      {overviewError && <p className="form-status mb-4">{overviewError}</p>}
+
+      <section className="metric-grid mb-4">
+        <article className="metric-card">
+          <div className="flex items-center justify-between"><p className="metric-label">Body weight</p><TrendingUp size={17} className="text-[var(--muted)]" /></div>
+          <p className="metric-value">{overview.bodyWeightKg ? `${overview.bodyWeightKg.toFixed(1)} kg` : '—'}</p>
+          <p className="metric-meta">Most recent saved measurement</p>
+        </article>
+        <article className="metric-card">
+          <div className="flex items-center justify-between"><p className="metric-label">7-day nutrition</p><Flame size={17} className="text-[var(--muted)]" /></div>
+          <p className="metric-value">{recentCompliance}%</p>
+          <p className="metric-meta">Calories logged against your targets</p>
+        </article>
+        <article className="metric-card">
+          <div className="flex items-center justify-between"><p className="metric-label">Workout completion</p><CalendarCheck2 size={17} className="text-[var(--muted)]" /></div>
+          <p className="metric-value">{workoutRate}%</p>
+          <p className="metric-meta">{completedWorkouts} completed workouts saved</p>
+        </article>
+        <article className="metric-card">
+          <div className="flex items-center justify-between"><p className="metric-label">Active phase</p><Target size={17} className="text-[var(--muted)]" /></div>
+          <p className="metric-value text-[1.25rem]">{phase ?? 'Standard'}</p>
+          <p className="metric-meta">Based on your saved cycle profile when applicable</p>
+        </article>
+      </section>
+
+      <section className="mb-4 grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_minmax(260px,0.7fr)]">
+        {calorieTarget > 0 ? (
+          <ProgressRing value={calorieActual} total={calorieTarget} label="Calories today" />
+        ) : (
+          <article className="glass-panel flex min-h-[210px] items-center justify-center p-4 text-center">
+            <div>
+              <p className="font-semibold">No calorie target logged today</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">Save today’s check-in to start tracking adherence.</p>
+            </div>
+          </article>
+        )}
+        <StickyCoachNote message={overview.coachNote ?? 'No visible coach note yet. Your coach can pin guidance here from the client roster.'} />
+        <article className="glass-panel p-4">
+          <p className="text-sm font-semibold">Quick actions</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">Your deeper trends and targets now have dedicated workspaces.</p>
+          <div className="mt-4 grid gap-2">
+            <Link to="/progress" className="button-secondary justify-between">Open progress <ArrowRight size={16} /></Link>
+            <Link to="/goals" className="button-secondary justify-between">Update goals <ArrowRight size={16} /></Link>
+          </div>
+        </article>
+      </section>
 
       <section className="mb-4 tab-strip">
         <button type="button" className={`tab-btn ${tab === 'today' ? 'active' : ''}`} onClick={() => setTab('today')}>Today</button>
@@ -113,26 +185,40 @@ export default function ClientDashboard() {
       </section>
 
       {tab === 'today' && (
-        <>
-          <section className="grid gap-4 xl:grid-cols-2">
-            <DailyWellnessCheckin bodyWeightKg={62} onCravingChange={setCraving} />
-            <AttendanceCalendar logs={demoGymLogs} />
-          </section>
-          <section className="mt-4">
-            <PerformanceCharts weight={demoWeightTrend} compliance={complianceSeries} strength={strengthSeries} />
-          </section>
-        </>
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
+          <DailyWellnessCheckin
+            userId={profile.id}
+            bodyWeightKg={bodyWeight}
+            onCravingChange={setCraving}
+            onSaved={loadOverview}
+          />
+          <AttendanceCalendar logs={overview.gymLogs} />
+        </section>
       )}
 
       {tab === 'nutrition' && (
         <>
           <section className="grid gap-4 xl:grid-cols-2">
-            <MacroCalculator cycleStartDate="2026-03-20" />
+            {overview.cycleStartDate ? (
+              <MacroCalculator cycleStartDate={overview.cycleStartDate} />
+            ) : (
+              <article className="glass-panel p-4 md:p-5">
+                <h2 className="text-lg font-bold">Macro calculator</h2>
+                <p className="mt-2 text-sm text-[var(--muted)]">No cycle start date is saved for this account. The adaptive cycle calculator stays disabled rather than inventing a date.</p>
+              </article>
+            )}
             <RecipeScaler />
           </section>
           <section className="mt-4 grid gap-4 xl:grid-cols-2">
-            <ShoppingListGenerator ingredients={demoRecipe} />
             <AIMealSwapper
+              preferredFoods={dietPreferences.likedFoods}
+              blockedFoods={dietPreferences.blockedFoods}
+              lactoseIntolerant={dietPreferences.lactoseIntolerant}
+            />
+            <FoodSelectorCalculator
+              hasDiabetes={hasDiabetes}
+              craving={craving}
+              cycleStartDate={overview.cycleStartDate ?? new Date().toISOString().slice(0, 10)}
               preferredFoods={dietPreferences.likedFoods}
               blockedFoods={dietPreferences.blockedFoods}
               lactoseIntolerant={dietPreferences.lactoseIntolerant}
@@ -148,24 +234,6 @@ export default function ClientDashboard() {
               snacksPerDay={dietPreferences.snacksPerDay}
             />
           </section>
-          <section className="mt-4 space-y-3">
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={hasDiabetes}
-                onChange={(event) => setHasDiabetes(event.target.checked)}
-              />
-              Diabetes mode (prioritize low-GI food guidance)
-            </label>
-            <FoodSelectorCalculator
-              hasDiabetes={hasDiabetes}
-              craving={craving}
-              cycleStartDate="2026-03-20"
-              preferredFoods={dietPreferences.likedFoods}
-              blockedFoods={dietPreferences.blockedFoods}
-              lactoseIntolerant={dietPreferences.lactoseIntolerant}
-            />
-          </section>
         </>
       )}
 
@@ -177,22 +245,33 @@ export default function ClientDashboard() {
           </section>
           <section className="mt-4 grid gap-4 xl:grid-cols-2">
             <BloodworkVault />
-            <SupplementProtocol phase={phase} />
+            {phase ? (
+              <SupplementProtocol phase={phase} />
+            ) : (
+              <article className="glass-panel p-4 md:p-5">
+                <h2 className="text-lg font-bold">Supplement protocol</h2>
+                <p className="mt-2 text-sm text-[var(--muted)]">Add cycle data during onboarding before using phase-specific supplement guidance.</p>
+              </article>
+            )}
           </section>
         </>
       )}
 
       {tab === 'advanced' && (
-        <>
-          <section className="grid gap-4 xl:grid-cols-2">
-            <CompetitionPrepCountdown showDate="2026-06-01" />
-            <HistoricalComparison thisYear={demoWeightTrend} lastYear={demoWeightTrendLastYear} />
-          </section>
-          <section className="mt-4">
-            <HealthDisclaimer />
-          </section>
-        </>
+        <section className="grid gap-4 xl:grid-cols-2">
+          <article className="glass-panel p-4 md:p-5">
+            <h2 className="text-lg font-bold">Progress and goal workspaces</h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">Long-term analytics and targets are separated from the daily screen so today stays focused.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link to="/progress" className="button-primary">View progress</Link>
+              <Link to="/goals" className="button-secondary">Manage goals</Link>
+            </div>
+          </article>
+          <HealthDisclaimer />
+        </section>
       )}
+
+      {loadingOverview && <p className="mt-4 text-xs text-[var(--muted)]">Refreshing dashboard data...</p>}
     </Layout>
   )
 }
