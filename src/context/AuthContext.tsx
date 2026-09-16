@@ -9,11 +9,31 @@ type AuthContextValue = {
   profile: Profile | null
   session: Session | null
   loading: boolean
+  signIn: (email: string, password: string) => Promise<string | null>
+  sendPasswordReset: (email: string) => Promise<string | null>
   signInAsDemoRole: (role: UserRole) => void
+  refreshProfile: () => Promise<void>
   signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+
+async function fetchProfile(userId: string): Promise<Profile | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id,username,role,gender,avatar_url')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('Unable to load profile', error)
+    return null
+  }
+
+  return data as Profile | null
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -25,43 +45,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
       return
     }
-    const client = supabase
 
+    const client = supabase
     let isActive = true
 
-    client.auth.getSession().then(async ({ data }) => {
+    const hydrate = async () => {
+      const { data, error } = await client.auth.getSession()
       if (!isActive) return
 
-      setSession(data.session)
-
-      if (data.session?.user.id) {
-        const { data: profileData } = await client
-          .from('profiles')
-          .select('id,username,role,gender,avatar_url')
-          .eq('id', data.session.user.id)
-          .single()
-
-        setProfile(profileData ?? null)
+      if (error) {
+        console.error('Unable to restore session', error)
+        setLoading(false)
+        return
       }
 
+      setSession(data.session)
+      setProfile(data.session?.user.id ? await fetchProfile(data.session.user.id) : null)
       setLoading(false)
-    })
+    }
 
-    const { data: listener } = client.auth.onAuthStateChange(async (_event, authSession) => {
+    void hydrate()
+
+    const { data: listener } = client.auth.onAuthStateChange((_event, authSession) => {
       setSession(authSession)
 
       if (!authSession?.user.id) {
         setProfile(null)
+        setLoading(false)
         return
       }
 
-      const { data: profileData } = await client
-        .from('profiles')
-        .select('id,username,role,gender,avatar_url')
-        .eq('id', authSession.user.id)
-        .single()
-
-      setProfile(profileData ?? null)
+      void fetchProfile(authSession.user.id).then((nextProfile) => {
+        if (isActive) {
+          setProfile(nextProfile)
+          setLoading(false)
+        }
+      })
     })
 
     return () => {
@@ -70,9 +89,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const signIn = async (email: string, password: string) => {
+    if (!supabase) return 'Supabase is not configured yet.'
+
+    setLoading(true)
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      setLoading(false)
+      return error.message
+    }
+
+    return null
+  }
+
+  const sendPasswordReset = async (email: string) => {
+    if (!supabase) return 'Supabase is not configured yet.'
+    if (!email.trim()) return 'Enter your email first.'
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/login`,
+    })
+
+    return error?.message ?? null
+  }
+
   const signInAsDemoRole = (role: UserRole) => {
+    if (isSupabaseConfigured) return
     setProfile(role === 'coach' ? demoCoach : demoClient)
     setSession(null)
+  }
+
+  const refreshProfile = async () => {
+    const userId = session?.user.id
+    if (!userId) return
+    setProfile(await fetchProfile(userId))
   }
 
   const signOut = async () => {
@@ -88,7 +138,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       session,
       loading,
+      signIn,
+      sendPasswordReset,
       signInAsDemoRole,
+      refreshProfile,
       signOut,
     }),
     [profile, session, loading],
