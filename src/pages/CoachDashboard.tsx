@@ -41,14 +41,24 @@ export default function CoachDashboard() {
 
   useEffect(() => {
     if (!profile) return
-    setLoading(true)
+    let active = true
+
     getCoachOverview(profile.id)
       .then((data) => {
+        if (!active) return
         setOverview(data)
         setError('')
       })
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Unable to load coach analytics.'))
-      .finally(() => setLoading(false))
+      .catch((reason: unknown) => {
+        if (active) setError(reason instanceof Error ? reason.message : 'Unable to load coach analytics.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
   }, [profile])
 
   const riskCount = overview.clientRows.filter((client) => client.riskReasons.length > 0).length
