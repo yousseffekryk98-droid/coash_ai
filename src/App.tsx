@@ -7,6 +7,9 @@ import SignUpPage from './pages/SignUpPage'
 import CoachDashboard from './pages/CoachDashboard'
 import ClientDashboard from './pages/ClientDashboard'
 import CoachClientsPage from './pages/CoachClientsPage'
+import CoachIntelligencePage from './pages/CoachIntelligencePage'
+import HabitsPage from './pages/HabitsPage'
+import CalendarPage from './pages/CalendarPage'
 import ProgressPage from './pages/ProgressPage'
 import GoalsPage from './pages/GoalsPage'
 import SettingsPage from './pages/SettingsPage'
@@ -75,6 +78,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/intelligence"
+        element={
+          <ProtectedRoute role="coach">
+            <CoachIntelligencePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/roadmap"
         element={
           <ProtectedRoute role="coach">
@@ -112,6 +123,22 @@ function AppRoutes() {
           <ProtectedRoute role="client">
             <GoalsPage />
           </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/habits"
+        element={
+          <AuthenticatedRoute>
+            <HabitsPage />
+          </AuthenticatedRoute>
+        }
+      />
+      <Route
+        path="/calendar"
+        element={
+          <AuthenticatedRoute>
+            <CalendarPage />
+          </AuthenticatedRoute>
         }
       />
       <Route
