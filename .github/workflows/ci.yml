@@ -21,6 +21,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Test local AI pipeline
+        run: python -m unittest discover -s python_ai/tests -p "test_*.py"
+
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
