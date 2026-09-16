@@ -14,8 +14,6 @@ create table if not exists public.direct_messages (
 
 create index if not exists direct_messages_pair_created_idx
   on public.direct_messages(coach_id, client_id, created_at desc);
-create index if not exists direct_messages_recipient_read_idx
-  on public.direct_messages(client_id, read_at, created_at desc);
 
 alter table public.direct_messages enable row level security;
 
@@ -34,13 +32,5 @@ with check (
   and (auth.uid() = coach_id or auth.uid() = client_id)
 );
 
-create policy "direct messages recipient read update"
-on public.direct_messages for update
-using (
-  (auth.uid() = client_id and sender_id = coach_id)
-  or (auth.uid() = coach_id and sender_id = client_id)
-)
-with check (
-  coach_id = coach_id
-  and client_id = client_id
-);
+-- Message rows are intentionally immutable from the client application.
+-- Read receipts can be added later through a narrow SECURITY DEFINER RPC instead of broad row updates.
