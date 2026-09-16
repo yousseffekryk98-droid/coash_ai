@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { foodCatalog } from '../../data/foodCatalog'
 import { getCyclePhase } from '../../utils/nutritionEngine'
 import { calculateFoodFromGrams, getDiabetesGiWarning, getLutealCravingSuggestion } from '../../utils/foodLogic'
@@ -30,15 +30,10 @@ export default function FoodSelectorCalculator({
   const [foodId, setFoodId] = useState(foodCatalog[0].id)
   const [grams, setGrams] = useState(150)
 
-  useEffect(() => {
-    if (selectableFoods.length === 0) return
-    const stillAvailable = selectableFoods.some((item) => item.id === foodId)
-    if (!stillAvailable) {
-      setFoodId(selectableFoods[0].id)
-    }
-  }, [selectableFoods, foodId])
-
-  const selectedFood = selectableFoods.find((item) => item.id === foodId) ?? selectableFoods[0] ?? foodCatalog[0]
+  const selectedFoodId = selectableFoods.some((item) => item.id === foodId)
+    ? foodId
+    : selectableFoods[0]?.id ?? foodCatalog[0].id
+  const selectedFood = selectableFoods.find((item) => item.id === selectedFoodId) ?? foodCatalog[0]
   const macros = useMemo(() => calculateFoodFromGrams(selectedFood, grams), [selectedFood, grams])
   const phase = getCyclePhase(new Date(cycleStartDate))
   const giWarning = getDiabetesGiWarning(hasDiabetes, selectedFood)
@@ -53,7 +48,7 @@ export default function FoodSelectorCalculator({
         <label className="text-sm">
           Food item
           <select
-            value={foodId}
+            value={selectedFoodId}
             onChange={(event) => setFoodId(event.target.value)}
             className="mt-1 block w-full rounded-lg border border-[var(--line)] bg-[var(--panel-strong)] p-2"
             disabled={selectableFoods.length === 0}

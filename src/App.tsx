@@ -1,10 +1,15 @@
 import type { ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { AuthProvider, useAuth } from './context/AuthContext'
+import { AuthProvider } from './context/AuthContext'
+import { useAuth } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
 import SignUpPage from './pages/SignUpPage'
 import CoachDashboard from './pages/CoachDashboard'
 import ClientDashboard from './pages/ClientDashboard'
+import CoachClientsPage from './pages/CoachClientsPage'
+import ProgressPage from './pages/ProgressPage'
+import GoalsPage from './pages/GoalsPage'
+import SettingsPage from './pages/SettingsPage'
 import NotFoundPage from './pages/NotFoundPage'
 import RoadmapPage from './pages/RoadmapPage'
 import IntegrationsPage from './pages/IntegrationsPage'
@@ -14,12 +19,21 @@ type ProtectedRouteProps = {
   children: ReactNode
 }
 
+function LoadingScreen() {
+  return <div className="grid min-h-screen place-items-center text-sm text-[var(--muted)]">Loading your workspace...</div>
+}
+
+function AuthenticatedRoute({ children }: { children: ReactNode }) {
+  const { profile, loading } = useAuth()
+  if (loading) return <LoadingScreen />
+  if (!profile) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
 function ProtectedRoute({ role, children }: ProtectedRouteProps) {
   const { profile, loading, session } = useAuth()
 
-  if (loading) {
-    return <div className="grid min-h-screen place-items-center text-slate-500">Loading session...</div>
-  }
+  if (loading) return <LoadingScreen />
 
   if (!profile) {
     return <Navigate to="/login" replace />
@@ -29,8 +43,7 @@ function ProtectedRoute({ role, children }: ProtectedRouteProps) {
     return <Navigate to={profile.role === 'coach' ? '/admin' : '/dashboard'} replace />
   }
 
-  const emailConfirmedAt = (session?.user as { email_confirmed_at?: string | null } | undefined)
-    ?.email_confirmed_at
+  const emailConfirmedAt = (session?.user as { email_confirmed_at?: string | null } | undefined)?.email_confirmed_at
   if (role === 'coach' && session && !emailConfirmedAt) {
     return <Navigate to="/login" replace />
   }
@@ -50,6 +63,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute role="coach">
             <CoachDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/clients"
+        element={
+          <ProtectedRoute role="coach">
+            <CoachClientsPage />
           </ProtectedRoute>
         }
       />
@@ -75,6 +96,30 @@ function AppRoutes() {
           <ProtectedRoute role="client">
             <ClientDashboard />
           </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/progress"
+        element={
+          <ProtectedRoute role="client">
+            <ProgressPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/goals"
+        element={
+          <ProtectedRoute role="client">
+            <GoalsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <AuthenticatedRoute>
+            <SettingsPage />
+          </AuthenticatedRoute>
         }
       />
       <Route

@@ -4,9 +4,11 @@ type CompetitionPrepCountdownProps = {
   showDate: string
 }
 
+const appReferenceTime = Date.now()
+
 export default function CompetitionPrepCountdown({ showDate }: CompetitionPrepCountdownProps) {
   const daysLeft = useMemo(() => {
-    const diff = new Date(showDate).getTime() - Date.now()
+    const diff = new Date(showDate).getTime() - appReferenceTime
     return Math.max(0, Math.ceil(diff / (1000 * 3600 * 24)))
   }, [showDate])
 

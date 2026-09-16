@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { getFridgeModePlan, getRestaurantSafeBet } from '../../utils/aiMealSwapper'
 import { getPreferredFoodCatalog } from '../../utils/foodPreferences'
 
@@ -19,18 +19,17 @@ export default function AIMealSwapper({ preferredFoods = [], blockedFoods = [], 
     () => getPreferredFoodCatalog({ likedFoods: preferredFoods, dislikedFoods: blockedFoods, lactoseIntolerant }),
     [preferredFoods, blockedFoods, lactoseIntolerant],
   )
-
-  useEffect(() => {
-    const availableIds = new Set(availableFoods.map((item) => item.id))
-    setPicked((prev) => prev.filter((id) => availableIds.has(id)).slice(0, 3))
-  }, [availableFoods])
-
+  const availableIds = new Set(availableFoods.map((item) => item.id))
+  const validPicked = picked.filter((id) => availableIds.has(id)).slice(0, 3)
   const remaining = { protein, carbs, fats }
-  const safeBet = useMemo(() => getRestaurantSafeBet(remaining), [protein, carbs, fats])
-  const fridgePlan = useMemo(() => getFridgeModePlan(picked, remaining, availableFoods), [picked, protein, carbs, fats, availableFoods])
+  const safeBet = getRestaurantSafeBet(remaining)
+  const fridgePlan = getFridgeModePlan(validPicked, remaining, availableFoods)
 
   const toggleIngredient = (id: string) => {
-    setPicked((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id].slice(0, 3)))
+    setPicked((previous) => {
+      const current = previous.filter((item) => availableIds.has(item)).slice(0, 3)
+      return current.includes(id) ? current.filter((item) => item !== id) : [...current, id].slice(0, 3)
+    })
   }
 
   return (
@@ -65,7 +64,7 @@ export default function AIMealSwapper({ preferredFoods = [], blockedFoods = [], 
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {availableFoods.slice(0, 12).map((item) => (
             <label key={item.id} className="inline-flex items-center gap-2 text-xs">
-              <input type="checkbox" checked={picked.includes(item.id)} onChange={() => toggleIngredient(item.id)} />
+              <input type="checkbox" checked={validPicked.includes(item.id)} onChange={() => toggleIngredient(item.id)} />
               {item.name}
             </label>
           ))}
