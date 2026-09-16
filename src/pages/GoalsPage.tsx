@@ -14,6 +14,10 @@ const emptyDraft = {
   targetDate: '',
 }
 
+const referenceDate = new Date()
+const referenceMonth = referenceDate.getMonth()
+const referenceYear = referenceDate.getFullYear()
+
 export default function GoalsPage() {
   const { profile, signOut } = useAuth()
   const [goals, setGoals] = useState<ClientGoal[]>([])
@@ -23,7 +27,7 @@ export default function GoalsPage() {
   const [saving, setSaving] = useState(false)
   const [progressDrafts, setProgressDrafts] = useState<Record<number, string>>({})
 
-  const loadGoals = async () => {
+  const refreshGoals = async () => {
     if (!profile) return
     setLoading(true)
     try {
@@ -37,11 +41,34 @@ export default function GoalsPage() {
   }
 
   useEffect(() => {
-    void loadGoals()
+    if (!profile) return
+    let active = true
+
+    getClientGoals(profile.id)
+      .then((data) => {
+        if (!active) return
+        setGoals(data)
+        setError('')
+      })
+      .catch((reason: unknown) => {
+        if (active) setError(reason instanceof Error ? reason.message : 'Unable to load goals. Apply the product overhaul migration first.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
   }, [profile])
 
   const activeGoals = useMemo(() => goals.filter((goal) => goal.status === 'active'), [goals])
   const completedGoals = useMemo(() => goals.filter((goal) => goal.status === 'completed'), [goals])
+  const dueThisMonth = activeGoals.filter((goal) => {
+    if (!goal.target_date) return false
+    const targetDate = new Date(`${goal.target_date}T12:00:00`)
+    return targetDate.getMonth() === referenceMonth && targetDate.getFullYear() === referenceYear
+  }).length
 
   if (!profile) return null
 
@@ -61,7 +88,7 @@ export default function GoalsPage() {
         target_date: draft.targetDate || null,
       })
       setDraft(emptyDraft)
-      await loadGoals()
+      await refreshGoals()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to create goal.')
     } finally {
@@ -76,7 +103,7 @@ export default function GoalsPage() {
 
     try {
       await updateGoalProgress(goal.id, value, complete ? 'completed' : undefined)
-      await loadGoals()
+      await refreshGoals()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to update goal.')
     }
@@ -102,9 +129,7 @@ export default function GoalsPage() {
         </article>
         <article className="metric-card">
           <p className="metric-label">Due this month</p>
-          <p className="metric-value">
-            {activeGoals.filter((goal) => goal.target_date && new Date(goal.target_date).getMonth() === new Date().getMonth()).length}
-          </p>
+          <p className="metric-value">{dueThisMonth}</p>
           <p className="metric-meta">Targets with a deadline this month</p>
         </article>
         <article className="metric-card">
