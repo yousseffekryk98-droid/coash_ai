@@ -79,9 +79,10 @@ export default function ClientDashboard() {
 
   useEffect(() => {
     if (!profile || !supabase) return
+    const client = supabase
 
     const loadPreferences = async () => {
-      const { data } = await supabase
+      const { data } = await client
         .from('client_diet_preferences')
         .select('liked_foods, disliked_foods, meals_per_day, snacks_per_day')
         .eq('user_id', profile.id)
