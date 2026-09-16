@@ -10,6 +10,7 @@ import CoachClientsPage from './pages/CoachClientsPage'
 import CoachIntelligencePage from './pages/CoachIntelligencePage'
 import HabitsPage from './pages/HabitsPage'
 import CalendarPage from './pages/CalendarPage'
+import MessagesPage from './pages/MessagesPage'
 import ProgressPage from './pages/ProgressPage'
 import GoalsPage from './pages/GoalsPage'
 import SettingsPage from './pages/SettingsPage'
@@ -138,6 +139,14 @@ function AppRoutes() {
         element={
           <AuthenticatedRoute>
             <CalendarPage />
+          </AuthenticatedRoute>
+        }
+      />
+      <Route
+        path="/messages"
+        element={
+          <AuthenticatedRoute>
+            <MessagesPage />
           </AuthenticatedRoute>
         }
       />
