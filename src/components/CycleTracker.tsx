@@ -10,6 +10,9 @@ const phaseLabels = [
   { label: 'Luteal', start: 15, end: 28 },
 ] as const
 
+const appReferenceTime = Date.now()
+const millisecondsPerDay = 1000 * 60 * 60 * 24
+
 export default function CycleTracker({ cycleStartDate }: CycleTrackerProps) {
   if (!cycleStartDate) {
     return (
@@ -22,7 +25,7 @@ export default function CycleTracker({ cycleStartDate }: CycleTrackerProps) {
 
   const start = new Date(cycleStartDate)
   const phase = getCyclePhase(start)
-  const daysElapsed = Math.floor((Date.now() - start.getTime()) / (1000 * 3600 * 24))
+  const daysElapsed = Math.floor((appReferenceTime - start.getTime()) / millisecondsPerDay)
   const cycleDay = (((daysElapsed % 28) + 28) % 28) + 1
 
   return (
