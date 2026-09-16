@@ -13,11 +13,21 @@ import {
 import type { ClientHabit, HabitCheckin } from '../api/engagementApi'
 import { useAuth } from '../hooks/useAuth'
 
-const initialDraft = {
+type HabitDraft = {
+  clientId: string
+  title: string
+  description: string
+  cadence: 'daily' | 'weekly'
+  target: number
+  startsOn: string
+  endsOn: string
+}
+
+const initialDraft: HabitDraft = {
   clientId: '',
   title: '',
   description: '',
-  cadence: 'daily' as const,
+  cadence: 'daily',
   target: 1,
   startsOn: '',
   endsOn: '',
@@ -29,7 +39,7 @@ export default function HabitsPage() {
   const [habits, setHabits] = useState<ClientHabit[]>([])
   const [checkins, setCheckins] = useState<HabitCheckin[]>([])
   const [clients, setClients] = useState<CoachClientRow[]>([])
-  const [draft, setDraft] = useState({ ...initialDraft, startsOn: todayIso })
+  const [draft, setDraft] = useState<HabitDraft>({ ...initialDraft, startsOn: todayIso })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -190,7 +200,7 @@ export default function HabitsPage() {
               <label className="field">Habit<input value={draft.title} onChange={(event) => setDraft((prev) => ({ ...prev, title: event.target.value }))} placeholder="Walk 8,000 steps" /></label>
               <label className="field">Coaching note<textarea rows={3} value={draft.description} onChange={(event) => setDraft((prev) => ({ ...prev, description: event.target.value }))} placeholder="Why this matters and what counts as complete" /></label>
               <div className="grid grid-cols-2 gap-3">
-                <label className="field">Cadence<select value={draft.cadence} onChange={(event) => setDraft((prev) => ({ ...prev, cadence: event.target.value as 'daily' | 'weekly' }))}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
+                <label className="field">Cadence<select value={draft.cadence} onChange={(event) => setDraft((prev) => ({ ...prev, cadence: event.target.value as HabitDraft['cadence'] }))}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
                 <label className="field">Target<input type="number" min={1} max={20} value={draft.target} onChange={(event) => setDraft((prev) => ({ ...prev, target: Number(event.target.value) }))} /></label>
               </div>
               <div className="grid grid-cols-2 gap-3">
