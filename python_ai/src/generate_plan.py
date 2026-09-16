@@ -6,19 +6,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from model_core import (
+    ALLOWED_VALUES,
+    FEATURE_WEIGHTS,
+    RANGES,
+    out_of_distribution_fields,
+    predict_targets,
+)
+
 AI_ROOT = Path(__file__).resolve().parents[1]
-
-NUMERIC_COLUMNS = [
-    'age',
-    'weight_kg',
-    'height_cm',
-    'has_diabetes',
-    'lactose_intolerant',
-    'meals_per_day',
-    'snacks_per_day',
-]
-
-CATEGORICAL_COLUMNS = ['gender', 'goal', 'activity_level']
 
 
 @dataclass
@@ -46,7 +42,7 @@ def resolve_inside_ai_root(path_value: str) -> Path:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Generate a diet plan from local model and food list.')
+    parser = argparse.ArgumentParser(description='Generate a coach-reviewed diet plan from the local model and food list.')
     parser.add_argument('--model', default='python_ai/models/diet_planner.json', help='Path to model file.')
     parser.add_argument('--profile', required=True, help='Path to user profile JSON.')
     parser.add_argument('--foods', required=True, help='Path to foods JSON array.')
@@ -54,21 +50,37 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _bounded_number(payload: dict[str, Any], field: str) -> float:
+    value = float(payload[field])
+    low, high = RANGES[field]
+    if not low <= value <= high:
+        raise ValueError(f'{field}={value} is outside supported range {low}..{high}')
+    return value
+
+
 def load_profile(path: Path) -> UserProfile:
     payload = json.loads(path.read_text(encoding='utf-8'))
+
+    gender = str(payload['gender']).strip().lower()
+    goal = str(payload['goal']).strip().lower()
+    activity_level = str(payload['activity_level']).strip().lower()
+    for field, value in [('gender', gender), ('goal', goal), ('activity_level', activity_level)]:
+        if value not in ALLOWED_VALUES[field]:
+            raise ValueError(f'{field}={value!r} is not supported')
+
     return UserProfile(
-        age=int(payload['age']),
-        weight_kg=float(payload['weight_kg']),
-        height_cm=float(payload['height_cm']),
-        gender=str(payload['gender']),
-        goal=str(payload['goal']),
-        activity_level=str(payload['activity_level']),
-        has_diabetes=int(payload['has_diabetes']),
-        lactose_intolerant=int(payload['lactose_intolerant']),
-        meals_per_day=int(payload['meals_per_day']),
-        snacks_per_day=int(payload['snacks_per_day']),
-        liked_foods=list(payload.get('liked_foods', [])),
-        disliked_foods=list(payload.get('disliked_foods', [])),
+        age=int(round(_bounded_number(payload, 'age'))),
+        weight_kg=_bounded_number(payload, 'weight_kg'),
+        height_cm=_bounded_number(payload, 'height_cm'),
+        gender=gender,
+        goal=goal,
+        activity_level=activity_level,
+        has_diabetes=int(round(_bounded_number(payload, 'has_diabetes'))),
+        lactose_intolerant=int(round(_bounded_number(payload, 'lactose_intolerant'))),
+        meals_per_day=int(round(_bounded_number(payload, 'meals_per_day'))),
+        snacks_per_day=int(round(_bounded_number(payload, 'snacks_per_day'))),
+        liked_foods=[str(item) for item in payload.get('liked_foods', [])],
+        disliked_foods=[str(item) for item in payload.get('disliked_foods', [])],
     )
 
 
@@ -87,69 +99,60 @@ def feature_row(profile: UserProfile) -> dict[str, Any]:
     }
 
 
-def distance(a: dict[str, Any], b: dict[str, Any], numeric_stats: dict[str, dict[str, float]]) -> float:
-    numeric_distance = 0.0
-    for column in NUMERIC_COLUMNS:
-        range_value = float(numeric_stats[column]['range'])
-        delta = abs(float(a[column]) - float(b[column])) / range_value
-        numeric_distance += delta
-
-    categorical_distance = 0.0
-    for column in CATEGORICAL_COLUMNS:
-        if str(a[column]).lower() != str(b[column]).lower():
-            categorical_distance += 1.0
-
-    return numeric_distance + categorical_distance
+def clamp(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
 
 
-def predict_macros(model: dict[str, Any], row: dict[str, Any], k: int = 7) -> dict[str, float]:
-    train_rows = model['rows']
-    numeric_stats = model['numeric_stats']
+def apply_guardrails(predicted: dict[str, float], profile: UserProfile) -> tuple[dict[str, float], list[str]]:
+    notes: list[str] = []
 
-    if not train_rows:
-        raise ValueError('Model has no training rows.')
+    raw_calories = float(predicted['target_calories'])
+    calories = clamp(raw_calories, 1200, 5000)
+    if calories != raw_calories:
+        notes.append('Calories were clamped to the supported planning range.')
 
-    ranked = []
-    for item in train_rows:
-        dist = distance(row, item['features'], numeric_stats)
-        ranked.append((dist, item['targets']))
+    protein_low = max(60.0, profile.weight_kg * 0.8)
+    protein_high = min(300.0, profile.weight_kg * 2.5)
+    raw_protein = float(predicted['target_protein'])
+    protein = clamp(raw_protein, protein_low, protein_high)
+    if protein != raw_protein:
+        notes.append('Protein was adjusted to the configured body-weight guardrail range.')
 
-    ranked.sort(key=lambda item: item[0])
-    neighbors = ranked[: max(1, min(k, len(ranked)))]
+    raw_fats = float(predicted['target_fats'])
+    fats = clamp(raw_fats, 35.0, min(180.0, profile.weight_kg * 1.5))
+    if fats != raw_fats:
+        notes.append('Fat target was adjusted to the configured planning guardrail range.')
 
-    weighted_sums = {
-        'target_calories': 0.0,
-        'target_protein': 0.0,
-        'target_carbs': 0.0,
-        'target_fats': 0.0,
+    energy_for_carbs = calories - protein * 4 - fats * 9
+    carbs = max(50.0, energy_for_carbs / 4)
+    if abs(carbs - float(predicted['target_carbs'])) > 25:
+        notes.append('Carbohydrates were reconciled so macro energy stays close to the guarded calorie target.')
+
+    guarded = {
+        'calories': round(calories),
+        'protein': round(protein, 1),
+        'carbs': round(carbs, 1),
+        'fats': round(fats, 1),
     }
-    total_weight = 0.0
-
-    for dist, targets in neighbors:
-        weight = 1.0 / (dist + 1e-6)
-        total_weight += weight
-        for key in weighted_sums:
-            weighted_sums[key] += float(targets[key]) * weight
-
-    return {key: weighted_sums[key] / total_weight for key in weighted_sums}
+    return guarded, notes
 
 
 def select_foods(foods: list[dict[str, Any]], profile: UserProfile) -> list[dict[str, Any]]:
-    liked = set(profile.liked_foods)
-    disliked = set(profile.disliked_foods)
+    liked = {item.casefold() for item in profile.liked_foods}
+    disliked = {item.casefold() for item in profile.disliked_foods}
 
     filtered = []
     for food in foods:
-        name = str(food.get('name', ''))
-        if name in disliked:
+        name = str(food.get('name', '')).strip()
+        if not name or name.casefold() in disliked:
             continue
-        if profile.lactose_intolerant and food.get('containsLactose'):
+        if profile.lactose_intolerant and bool(food.get('containsLactose')):
             continue
-        if profile.has_diabetes and food.get('glycemicIndex') == 'High':
+        if profile.has_diabetes and str(food.get('glycemicIndex', '')).lower() == 'high':
             continue
         filtered.append(food)
 
-    filtered.sort(key=lambda item: (0 if str(item.get('name', '')) in liked else 1, str(item.get('name', ''))))
+    filtered.sort(key=lambda item: (0 if str(item.get('name', '')).casefold() in liked else 1, str(item.get('category', '')), str(item.get('name', ''))))
     return filtered
 
 
@@ -170,17 +173,26 @@ def build_plan(macros: dict[str, float], foods: list[dict[str, Any]], profile: U
             'daily_targets': macros,
             'slot_targets': per_slot,
             'items': [],
-            'notes': ['No foods available after applying preferences.'],
+            'notes': ['No foods are available after applying preferences and dietary filters.'],
         }
+
+    by_category: dict[str, list[dict[str, Any]]] = {}
+    for food in foods:
+        by_category.setdefault(str(food.get('category', 'Other')), []).append(food)
+
+    category_order = [key for key in ('Protein', 'Carb', 'Fat') if key in by_category]
+    category_order.extend(key for key in sorted(by_category) if key not in category_order)
 
     items = []
     for index in range(total_slots):
-        food = foods[index % len(foods)]
+        category = category_order[index % len(category_order)]
+        options = by_category[category]
+        food = options[(index // max(1, len(category_order))) % len(options)]
         items.append(
             {
                 'slot': index + 1,
                 'food': food['name'],
-                'category': food.get('category', 'Unknown'),
+                'category': category,
                 'target_macros': per_slot,
             }
         )
@@ -190,10 +202,55 @@ def build_plan(macros: dict[str, float], foods: list[dict[str, Any]], profile: U
         'slot_targets': per_slot,
         'items': items,
         'notes': [
-            'Plan respects liked/disliked food list.',
-            'Lactose foods are removed when lactose_intolerant = 1.',
-            'High-GI foods are removed when has_diabetes = 1.',
+            'Plan respects liked/disliked foods.',
+            'Lactose-containing foods are removed when lactose_intolerant = 1.',
+            'High-GI foods are excluded from this planner when has_diabetes = 1.',
+            'Food slots are suggestions only; exact portions still require coach review and a nutrient-complete food database.',
         ],
+    }
+
+
+def prediction_quality(model: dict[str, Any], profile_features: dict[str, Any], neighbor_meta: dict[str, Any], profile: UserProfile) -> dict[str, Any]:
+    rows = list(model.get('rows', []))
+    numeric_stats = model.get('numeric_stats', {})
+    ood_fields = out_of_distribution_fields(profile_features, numeric_stats, rows)
+    row_count = int(model.get('row_count', len(rows)))
+
+    if row_count >= 100:
+        confidence = 0.9
+    elif row_count >= 50:
+        confidence = 0.78
+    elif row_count >= 20:
+        confidence = 0.58
+    elif row_count >= 10:
+        confidence = 0.42
+    else:
+        confidence = 0.25
+
+    confidence -= min(0.3, len(ood_fields) * 0.1)
+    mean_distance = float(neighbor_meta.get('mean_neighbor_distance', 0))
+    if mean_distance > 3:
+        confidence -= 0.15
+    elif mean_distance > 2:
+        confidence -= 0.08
+    confidence = round(clamp(confidence, 0.05, 0.95), 3)
+
+    reasons: list[str] = []
+    if row_count < 50:
+        reasons.append(f'Model has only {row_count} unique training rows.')
+    if ood_fields:
+        reasons.append(f'Profile is outside the training distribution for: {", ".join(ood_fields)}.')
+    if profile.has_diabetes:
+        reasons.append('Diabetes mode requires coach/clinician-aware review; the planner does not make treatment decisions.')
+    if profile.goal == 'competition_prep':
+        reasons.append('Competition prep is high-context and should be reviewed by an experienced coach.')
+
+    return {
+        'confidence': confidence,
+        'out_of_distribution_fields': ood_fields,
+        'neighbor_summary': neighbor_meta,
+        'requires_coach_review': confidence < 0.7 or bool(reasons),
+        'review_reasons': reasons,
     }
 
 
@@ -214,21 +271,36 @@ def main() -> None:
     model = json.loads(model_path.read_text(encoding='utf-8'))
     profile = load_profile(profile_path)
     foods = json.loads(foods_path.read_text(encoding='utf-8'))
+    if not isinstance(foods, list):
+        raise ValueError('Foods JSON must contain an array.')
 
-    predicted = predict_macros(model, feature_row(profile), k=7)
-    macros = {
-        'calories': max(1200, round(float(predicted['target_calories']))),
-        'protein': max(80, round(float(predicted['target_protein']), 1)),
-        'carbs': max(80, round(float(predicted['target_carbs']), 1)),
-        'fats': max(30, round(float(predicted['target_fats']), 1)),
-    }
-
+    features = feature_row(profile)
+    rows = list(model.get('rows', []))
+    selected_k = int(model.get('selected_k', 7))
+    weights = model.get('feature_weights', FEATURE_WEIGHTS)
+    predicted, neighbor_meta = predict_targets(rows, features, model['numeric_stats'], selected_k, weights)
+    macros, guardrail_notes = apply_guardrails(predicted, profile)
     filtered_foods = select_foods(foods, profile)
     plan = build_plan(macros, filtered_foods, profile)
+    quality = prediction_quality(model, features, neighbor_meta, profile)
+
+    plan['prediction_quality'] = quality
+    plan['guardrails_applied'] = guardrail_notes
+    plan['model_info'] = {
+        'model_type': model.get('model_type', 'knn_regression_stdlib'),
+        'model_version': model.get('model_version', 'legacy-local-model'),
+        'selected_k': selected_k,
+        'training_rows': int(model.get('row_count', len(rows))),
+        'evaluation': model.get('evaluation'),
+    }
+    plan['raw_prediction'] = {key: round(float(value), 2) for key, value in predicted.items()}
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(plan, indent=2), encoding='utf-8')
     print(f'Plan generated: {out_path}')
+    print(f'Prediction confidence: {quality["confidence"]:.3f}')
+    if quality['requires_coach_review']:
+        print('Coach review required before using this plan with a client.')
 
 
 if __name__ == '__main__':

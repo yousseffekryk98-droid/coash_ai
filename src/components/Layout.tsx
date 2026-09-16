@@ -1,4 +1,4 @@
-import { Activity, BarChart3, LayoutDashboard, LogOut, Map, Plug, Settings, Target, Users } from 'lucide-react'
+import { Activity, BarChart3, BrainCircuit, CalendarClock, LayoutDashboard, LogOut, Map, MessageCircle, Plug, Repeat2, Settings, Target, Users } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { isSupabaseConfigured } from '../lib/supabase'
@@ -22,6 +22,10 @@ type NavItem = {
 const coachNav: NavItem[] = [
   { to: '/admin', label: 'Overview', icon: LayoutDashboard },
   { to: '/clients', label: 'Clients', icon: Users },
+  { to: '/intelligence', label: 'Intelligence', icon: BrainCircuit },
+  { to: '/messages', label: 'Messages', icon: MessageCircle },
+  { to: '/habits', label: 'Habits', icon: Repeat2 },
+  { to: '/calendar', label: 'Calendar', icon: CalendarClock },
   { to: '/integrations', label: 'Integrations', icon: Plug },
   { to: '/roadmap', label: 'Roadmap', icon: Map },
   { to: '/settings', label: 'Settings', icon: Settings },
@@ -31,6 +35,9 @@ const clientNav: NavItem[] = [
   { to: '/dashboard', label: 'Today', icon: LayoutDashboard },
   { to: '/progress', label: 'Progress', icon: BarChart3 },
   { to: '/goals', label: 'Goals', icon: Target },
+  { to: '/messages', label: 'Messages', icon: MessageCircle },
+  { to: '/habits', label: 'Habits', icon: Repeat2 },
+  { to: '/calendar', label: 'Calendar', icon: CalendarClock },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
